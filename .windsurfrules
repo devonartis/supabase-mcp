@@ -1,0 +1,3 @@
+- **Always follow the branch strategy** defined in `BRANCHING_STRATEGY.md`.
+- **Always check to make sure you are in the correct branch** before starting work.
+- **Never delete or overwrite existing code** unless explicitly instructed to or if part of a task from `TASK.md`.
