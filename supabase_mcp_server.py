@@ -1,7 +1,7 @@
 from fastmcp import FastMCP
 from supabase import create_client, Client
 import os
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Literal
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv('SUPABASE_URL')
@@ -12,19 +12,35 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 mcp = FastMCP(transport='stdio')
 
 @mcp.tool
-def read_rows(table_name: str, query: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+def read_rows(
+    table_name: str, 
+    query: Optional[Dict[str, Any]] = None,
+    select: str = "*",
+    order_by: Optional[Dict[str, Literal["asc", "desc"]]] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None
+) -> List[Dict[str, Any]]:
     """
-    Read rows from a Supabase table with optional filtering.
+    Read rows from a Supabase table with advanced filtering and pagination.
     
     Use this tool to query data from any table in your Supabase database.
-    You can retrieve all rows or filter results using exact match conditions.
+    You can retrieve all rows or filter results using exact match conditions,
+    order the results, and paginate through large result sets.
     
     Args:
         table_name (str): Name of the table to query. Must be an existing table in your Supabase project.
         query (Optional[Dict[str, Any]]): Optional filter conditions as key-value pairs.
             Each key should be a column name, and the value is what to match against.
             For example: {"status": "active", "user_id": 123}
-            If not provided, all rows will be returned.
+            If not provided, all rows will be returned (subject to other parameters).
+        select (str): Columns to select. Default is "*" for all columns.
+            Can be a comma-separated string like "id,name,email" to select specific columns.
+        order_by (Optional[Dict[str, Literal["asc", "desc"]]]): Columns to order by and their direction.
+            For example: {"created_at": "desc"} or {"name": "asc", "id": "desc"}
+        limit (Optional[int]): Maximum number of rows to return. 
+            Useful for pagination or limiting large result sets.
+        offset (Optional[int]): Number of rows to skip before starting to return rows.
+            Used with limit for implementing pagination.
     
     Returns:
         List[Dict[str, Any]]: List of matching records as dictionaries.
@@ -35,12 +51,35 @@ def read_rows(table_name: str, query: Optional[Dict[str, Any]] = None) -> List[D
         # Get all users
         read_rows("users")
         
-        # Get active users with a specific role
-        read_rows("users", {"is_active": True, "role": "admin"})
+        # Get active users with a specific role, only select certain fields
+        read_rows("users", {"is_active": True, "role": "admin"}, select="id,name,email")
+        
+        # Get the 10 most recent orders
+        read_rows("orders", order_by={"created_at": "desc"}, limit=10)
+        
+        # Paginate through users, 20 at a time, starting at the 41st user
+        read_rows("users", limit=20, offset=40)
     """
+    query_builder = supabase.table(table_name).select(select)
+    
+    # Apply filters if provided
     if query:
-        return supabase.table(table_name).select('*').match(query).execute().data
-    return supabase.table(table_name).select('*').execute().data
+        query_builder = query_builder.match(query)
+    
+    # Apply ordering if provided
+    if order_by:
+        for column, direction in order_by.items():
+            query_builder = query_builder.order(column, ascending=(direction.lower() == "asc"))
+    
+    # Apply pagination if provided
+    if limit is not None:
+        query_builder = query_builder.limit(limit)
+    
+    if offset is not None:
+        query_builder = query_builder.offset(offset)
+    
+    # Execute the query and return the results
+    return query_builder.execute().data
 
 @mcp.tool
 def create_records(table_name: str, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

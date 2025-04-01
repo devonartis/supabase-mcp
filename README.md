@@ -51,11 +51,15 @@ The server uses stdio transport, so it can be integrated with any MCP client tha
 
 #### read_rows
 
-Query and filter data from a Supabase table.
+Query and filter data from a Supabase table with advanced filtering and pagination.
 
 **Parameters:**
 - `table_name` (string): Name of the table to query
 - `query` (optional object): Filter conditions for the query
+- `select` (string): Columns to select (default: "*" for all columns)
+- `order_by` (optional object): Columns to order by and their direction ("asc" or "desc")
+- `limit` (optional number): Maximum number of rows to return
+- `offset` (optional number): Number of rows to skip (for pagination)
 
 **Example:**
 ```python
@@ -64,6 +68,15 @@ read_rows("users")
 
 # Read rows with specific conditions
 read_rows("users", {"is_active": true, "role": "admin"})
+
+# Select specific columns
+read_rows("users", select="id,name,email")
+
+# Get the 10 most recent orders
+read_rows("orders", order_by={"created_at": "desc"}, limit=10)
+
+# Paginate through users, 20 at a time, starting at the 41st user
+read_rows("users", limit=20, offset=40)
 ```
 
 #### create_records
