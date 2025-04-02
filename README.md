@@ -15,6 +15,7 @@ A Model Context Protocol (MCP) server for interacting with Supabase databases. T
 
 - Python 3.9+
 - A Supabase project with service role key
+- python-dotenv (for environment variable management)
 
 ### Setup
 
@@ -34,6 +35,8 @@ A Model Context Protocol (MCP) server for interacting with Supabase databases. T
    SUPABASE_URL=https://your-project-id.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ```
+   
+   The server uses python-dotenv to automatically load these environment variables from the .env file.
 
 ## Usage
 

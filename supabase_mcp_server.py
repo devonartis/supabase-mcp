@@ -2,16 +2,21 @@ from fastmcp import FastMCP
 from supabase import create_client, Client
 import os
 from typing import List, Dict, Optional, Any, Literal
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
 # Create MCP server
 mcp = FastMCP(transport='stdio')
 
-@mcp.tool
+
+@mcp.tool()
 def read_rows(
     table_name: str, 
     query: Optional[Dict[str, Any]] = None,
@@ -81,7 +86,7 @@ def read_rows(
     # Execute the query and return the results
     return query_builder.execute().data
 
-@mcp.tool
+@mcp.tool()
 def create_records(table_name: str, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Create one or more records in a Supabase table.
@@ -112,7 +117,7 @@ def create_records(table_name: str, records: List[Dict[str, Any]]) -> List[Dict[
     """
     return supabase.table(table_name).insert(records).execute().data
 
-@mcp.tool
+@mcp.tool()
 def update_records(table_name: str, query: Dict[str, Any], updates: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Update one or more records in a Supabase table.
@@ -143,7 +148,7 @@ def update_records(table_name: str, query: Dict[str, Any], updates: Dict[str, An
     """
     return supabase.table(table_name).update(updates).match(query).execute().data
 
-@mcp.tool
+@mcp.tool()
 def delete_records(table_name: str, query: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Delete one or more records from a Supabase table.

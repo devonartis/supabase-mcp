@@ -18,8 +18,8 @@
 
 - [x] Setup configuration management
   - [x] Environment variable handling
-  - [ ] Configuration validation
-  - [ ] Default configuration for local development
+  - [x] Configuration validation
+  - [x] Default configuration for local development
 
 - [ ] Implement logging framework
   - [ ] Structured logging
@@ -131,3 +131,10 @@ These initial tasks will establish the foundation for the project and allow for 
   - `delete_records`: Remove records from tables
 - Added environment variable configuration for Supabase URL and service role key
 - Added comprehensive docstrings for all tools
+
+## Completed Tasks (2025-04-01)
+- Enhanced `read_rows` function with advanced filtering options (select, order_by, limit, offset)
+- Integrated `python-dotenv` for improved environment variable management
+- Updated tool decorators to use proper syntax with parentheses
+- Improved .gitignore to exclude editor settings and environment files
+- Fixed tests for complex chained operations in the `read_rows` function

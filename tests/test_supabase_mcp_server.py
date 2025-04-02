@@ -125,19 +125,33 @@ def test_read_rows_with_all_parameters(mock_supabase):
     """Test reading rows with all parameters."""
     query = {"status": "active"}
     order_by = {"name": "asc"}
+    
+    # Reset the mock to clear any previous calls
+    mock_supabase.reset_mock()
+    
+    # Set up the mock to return our test data
+    mock_execute = MagicMock()
+    mock_execute.data = [{"id": 1, "name": "Test"}]
+    
+    # Make any chain of method calls return our mock_execute
+    mock_table = mock_supabase.table.return_value
+    mock_select = mock_table.select.return_value
+    mock_match = mock_select.match.return_value
+    mock_order = mock_match.order.return_value
+    mock_limit = mock_order.limit.return_value
+    mock_offset = mock_limit.offset.return_value
+    mock_offset.execute.return_value = mock_execute
+    
+    # Call the function
     result = read_rows("test_table", query=query, select="id,name,status", order_by=order_by, limit=10, offset=20)
-    
-    # Verify the correct methods were called
-    mock_supabase.table.assert_called_once_with("test_table")
-    mock_supabase.table().select.assert_called_once_with("id,name,status")
-    mock_supabase.table().select().match.assert_called_once_with(query)
-    
-    # Note: Due to the complexity of chaining multiple operations in the test,
-    # we're not asserting the exact call sequence for order, limit, and offset here.
-    # In a real application, we would use a more sophisticated approach to test this.
     
     # Verify the result
     assert result == [{"id": 1, "name": "Test"}]
+    
+    # Verify the key method calls without checking the exact sequence
+    mock_supabase.table.assert_called_once_with("test_table")
+    mock_table.select.assert_called_once_with("id,name,status")
+    mock_select.match.assert_called_once_with(query)
 
 def test_create_records(mock_supabase):
     """Test creating records."""
