@@ -8,6 +8,7 @@ A Model Context Protocol (MCP) server for interacting with Supabase databases. T
 - **Create Operations**: Insert new records into tables
 - **Update Operations**: Modify existing records with flexible querying
 - **Delete Operations**: Remove records from tables with safety controls
+- **Schema Management**: Create tables and execute SQL commands programmatically
 - **Structured Logging**: Comprehensive logging with JSON formatting and context
 
 ## Installation
@@ -137,6 +138,53 @@ delete_records("users", {"id": 123})
 
 # Delete multiple records matching a condition
 delete_records("orders", {"status": "cancelled"})
+```
+
+#### create_table
+
+Create a new table in the Supabase database with specified columns.
+
+**Parameters:**
+- `table_name` (string): Name of the table to create
+- `columns` (array of objects): Column definitions with name, type, and constraints
+- `schema_name` (optional string): Schema to create the table in (default: "public")
+
+Each column object can include:
+- `name` (string): Column name
+- `type` (string): PostgreSQL data type
+- `nullable` (optional boolean): Whether the column can contain NULL values
+- `unique` (optional boolean): Whether values must be unique
+- `primary` (optional boolean): Whether this is a primary key
+- `default` (optional string): Default value expression
+
+**Example:**
+```python
+# Create a simple users table
+create_table(
+    "users",
+    [
+        {"name": "id", "type": "serial", "primary": true},
+        {"name": "username", "type": "text", "unique": true, "nullable": false},
+        {"name": "email", "type": "text", "unique": true, "nullable": false},
+        {"name": "created_at", "type": "timestamp", "default": "now()"}
+    ]
+)
+```
+
+#### execute_sql
+
+Execute arbitrary SQL commands in the Supabase database.
+
+**Parameters:**
+- `sql` (string): SQL command to execute
+
+**Example:**
+```python
+# Create an index
+execute_sql("CREATE INDEX idx_users_email ON users(email)")
+
+# Add a check constraint
+execute_sql("ALTER TABLE products ADD CONSTRAINT positive_price CHECK (price > 0)")
 ```
 
 ## Development
