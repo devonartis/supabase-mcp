@@ -4,6 +4,7 @@ import os
 from typing import List, Dict, Optional, Any, Literal
 from dotenv import load_dotenv
 import logger
+import postgrest
 
 # Load environment variables
 load_dotenv()
@@ -18,7 +19,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("Missing required environment variables: SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY")
 
 try:
-    logger.info(f"Connecting to Supabase at {SUPABASE_URL}")
+    logger.info("Connecting to Supabase at " + SUPABASE_URL)
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     logger.info("Successfully connected to Supabase")
 except Exception as e:
@@ -89,39 +90,39 @@ def read_rows(
         "offset": offset
     }
     
-    logger.info(f"Reading rows from table '{table_name}'", log_context)
+    logger.info("Reading rows from table '" + table_name + "'", log_context)
     
     try:
         query_builder = supabase.table(table_name).select(select)
         
         # Apply filters if provided
         if query:
-            logger.debug(f"Applying filter conditions to table '{table_name}'", {"conditions": query})
+            logger.debug("Applying filter conditions to table '" + table_name + "'", {"conditions": query})
             query_builder = query_builder.match(query)
         
         # Apply ordering if provided
         if order_by:
             for column, direction in order_by.items():
                 ascending = direction.lower() == "asc"
-                logger.debug(f"Ordering by column '{column}' ({'ascending' if ascending else 'descending'})")
+                logger.debug("Ordering by column '" + column + "' (" + ('ascending' if ascending else 'descending') + ")")
                 query_builder = query_builder.order(column, ascending=ascending)
         
         # Apply pagination if provided
         if limit is not None:
-            logger.debug(f"Limiting results to {limit} rows")
+            logger.debug("Limiting results to " + str(limit) + " rows")
             query_builder = query_builder.limit(limit)
         
         if offset is not None:
-            logger.debug(f"Skipping first {offset} rows")
+            logger.debug("Skipping first " + str(offset) + " rows")
             query_builder = query_builder.offset(offset)
         
         # Execute the query and return the results
         result = query_builder.execute().data
-        logger.info(f"Successfully read {len(result)} rows from table '{table_name}'")
+        logger.info("Successfully read " + str(len(result)) + " rows from table '" + table_name + "'")
         return result
         
     except Exception as e:
-        logger.error(f"Error reading from table '{table_name}'", log_context, exc_info=e)
+        logger.error("Error reading from table '" + table_name + "'", log_context, exc_info=e)
         raise
 
 @mcp.tool()
@@ -158,14 +159,14 @@ def create_records(table_name: str, records: List[Dict[str, Any]]) -> List[Dict[
         "record_count": len(records)
     }
     
-    logger.info(f"Creating {len(records)} records in table '{table_name}'", log_context)
+    logger.info("Creating " + str(len(records)) + " records in table '" + table_name + "'", log_context)
     
     try:
         result = supabase.table(table_name).insert(records).execute().data
-        logger.info(f"Successfully created {len(result)} records in table '{table_name}'")
+        logger.info("Successfully created " + str(len(result)) + " records in table '" + table_name + "'")
         return result
     except Exception as e:
-        logger.error(f"Error creating records in table '{table_name}'", log_context, exc_info=e)
+        logger.error("Error creating records in table '" + table_name + "'", log_context, exc_info=e)
         raise
 
 @mcp.tool()
@@ -203,14 +204,14 @@ def update_records(table_name: str, query: Dict[str, Any], updates: Dict[str, An
         "updates": updates
     }
     
-    logger.info(f"Updating records in table '{table_name}'", log_context)
+    logger.info("Updating records in table '" + table_name + "'", log_context)
     
     try:
         result = supabase.table(table_name).update(updates).match(query).execute().data
-        logger.info(f"Successfully updated {len(result)} records in table '{table_name}'")
+        logger.info("Successfully updated " + str(len(result)) + " records in table '" + table_name + "'")
         return result
     except Exception as e:
-        logger.error(f"Error updating records in table '{table_name}'", log_context, exc_info=e)
+        logger.error("Error updating records in table '" + table_name + "'", log_context, exc_info=e)
         raise
 
 @mcp.tool()
@@ -246,14 +247,14 @@ def delete_records(table_name: str, query: Dict[str, Any]) -> List[Dict[str, Any
         "query": query
     }
     
-    logger.info(f"Deleting records from table '{table_name}'", log_context)
+    logger.info("Deleting records from table '" + table_name + "'", log_context)
     
     try:
         result = supabase.table(table_name).delete().match(query).execute().data
-        logger.info(f"Successfully deleted {len(result)} records from table '{table_name}'")
+        logger.info("Successfully deleted " + str(len(result)) + " records from table '" + table_name + "'")
         return result
     except Exception as e:
-        logger.error(f"Error deleting records from table '{table_name}'", log_context, exc_info=e)
+        logger.error("Error deleting records from table '" + table_name + "'", log_context, exc_info=e)
         raise
 
 @mcp.tool()
@@ -308,7 +309,7 @@ def create_table(
         "column_count": len(columns)
     }
     
-    logger.info(f"Creating table '{schema_name}.{table_name}' with {len(columns)} columns", log_context)
+    logger.info("Creating table '" + schema_name + "." + table_name + "' with " + str(len(columns)) + " columns", log_context)
     
     try:
         # Call the create_table_dynamic function via RPC
@@ -322,19 +323,186 @@ def create_table(
             params["p_schema_name"] = schema_name
         
         # Execute the RPC call
-        result = supabase.rpc("create_table_dynamic", params).execute().data
-        
-        # Log the result
-        if result and result[0].get("success"):
-            logger.info(f"Successfully created table '{schema_name}.{table_name}'", log_context)
-        else:
-            error_msg = result[0].get("message") if result else "Unknown error"
-            logger.warning(f"Failed to create table '{schema_name}.{table_name}': {error_msg}", log_context)
-        
-        return result[0] if result else {"success": False, "message": "No result returned from RPC call"}
+        try:
+            # Try to execute the RPC call normally
+            result = supabase.rpc("create_table_dynamic", params).execute().data
+            
+            # Log the result
+            if result and isinstance(result, list) and len(result) > 0 and result[0].get("success"):
+                logger.info("Successfully created table '" + schema_name + "." + table_name + "'", log_context)
+                return result[0]
+            else:
+                error_msg = result[0].get("message") if result and isinstance(result, list) and len(result) > 0 else "Unknown error"
+                logger.warning("Failed to create table '" + schema_name + "." + table_name + "': " + error_msg, log_context)
+                return result[0] if result and isinstance(result, list) and len(result) > 0 else {"success": False, "message": "No result returned from RPC call"}
+                
+        except postgrest.exceptions.APIError as e:
+            # Handle the case where the response is treated as an error
+            # This is a known issue with the Supabase Python client
+            if hasattr(e, 'args') and len(e.args) > 0:
+                error_data = e.args[0]
+                
+                # Check if this is actually a success response
+                if isinstance(error_data, dict) and error_data.get('success') is True:
+                    logger.info("Successfully created table '" + schema_name + "." + table_name + "' (handled API error)", log_context)
+                    return error_data
+                elif isinstance(error_data, str):
+                    # Try to parse the string as JSON
+                    try:
+                        import json
+                        # Replace single quotes with double quotes for proper JSON parsing
+                        error_data = error_data.replace("'", '"')
+                        parsed_data = json.loads(error_data)
+                        if isinstance(parsed_data, dict) and parsed_data.get('success') is True:
+                            logger.info("Successfully created table '" + schema_name + "." + table_name + "' (handled API error from string)", log_context)
+                            return parsed_data
+                    except Exception:
+                        pass
+                
+                # Try to extract the actual response data
+                try:
+                    import json
+                    import re
+                    
+                    # Try to find a JSON-like structure in the error message
+                    if isinstance(error_data, str):
+                        match = re.search(r'\{.*\}', str(error_data))
+                        if match:
+                            json_str = match.group(0).replace("'", '"')
+                            parsed_data = json.loads(json_str)
+                            if isinstance(parsed_data, dict) and parsed_data.get('success') is True:
+                                logger.info("Successfully created table '" + schema_name + "." + table_name + "' (extracted from error)", log_context)
+                                return parsed_data
+                except Exception:
+                    pass
+                
+                # Special case: If the error message contains "Table created successfully"
+                if isinstance(error_data, str) and "Table created successfully" in error_data:
+                    success_response = {
+                        "success": True,
+                        "message": "Table created successfully",
+                        "table_name": f"{schema_name}.{table_name}"
+                    }
+                    logger.info("Successfully created table '" + schema_name + "." + table_name + "' (detected from error message)", log_context)
+                    return success_response
+                
+                # Log the error
+                logger.warning("Failed to create table '" + schema_name + "." + table_name + "': " + str(e), log_context)
+                return {"success": False, "message": str(e)}
+            else:
+                # This is a real error without structured data
+                logger.error("Error creating table '" + schema_name + "." + table_name + "'", log_context)
+                return {"success": False, "message": str(e)}
     except Exception as e:
-        logger.error(f"Error creating table '{schema_name}.{table_name}'", log_context, exc_info=e)
-        raise
+        logger.error("Error creating table '" + schema_name + "." + table_name + "'", log_context, exc_info=e)
+        return {"success": False, "message": str(e)}
+
+@mcp.tool()
+def execute_sql(sql: str) -> Dict[str, Any]:
+    """
+    Execute arbitrary SQL commands in the Supabase database.
+    
+    This tool allows executing SQL statements directly in the database.
+    It requires service_role privileges and should be used with extreme caution.
+    
+    Args:
+        sql (str): The SQL statement to execute
+    
+    Returns:
+        Dict[str, Any]: A dictionary containing the result of the operation, including:
+            - success (bool): Whether the operation was successful
+            - message (str): A message describing the result
+            - sql (str): The SQL statement that was executed
+    
+    Examples:
+        >>> execute_sql("CREATE INDEX idx_users_email ON users (email)")
+        {
+            "success": true,
+            "message": "SQL executed successfully",
+            "sql": "CREATE INDEX idx_users_email ON users (email)"
+        }
+    """
+    log_context = {"sql": sql[:100] + "..." if len(sql) > 100 else sql}
+    
+    logger.info("Executing SQL: " + log_context['sql'], log_context)
+    
+    try:
+        # Call the execute_sql function via RPC
+        params = {"sql": sql}
+        
+        try:
+            # Try to execute the RPC call normally
+            result = supabase.rpc("execute_sql", params).execute().data
+            
+            # Log the result
+            if result and isinstance(result, list) and len(result) > 0 and result[0].get("success"):
+                logger.info("Successfully executed SQL", log_context)
+                return result[0]
+            else:
+                error_msg = result[0].get("message") if result and isinstance(result, list) and len(result) > 0 else "Unknown error"
+                logger.warning("Failed to execute SQL: " + error_msg, log_context)
+                return result[0] if result and isinstance(result, list) and len(result) > 0 else {"success": False, "message": "No result returned from RPC call"}
+                
+        except postgrest.exceptions.APIError as e:
+            # Handle the case where the response is treated as an error
+            # This is a known issue with the Supabase Python client
+            if hasattr(e, 'args') and len(e.args) > 0:
+                error_data = e.args[0]
+                
+                # Check if this is actually a success response
+                if isinstance(error_data, dict) and error_data.get('success') is True:
+                    logger.info("Successfully executed SQL (handled API error)", log_context)
+                    return error_data
+                elif isinstance(error_data, str):
+                    # Try to parse the string as JSON
+                    try:
+                        import json
+                        # Replace single quotes with double quotes for proper JSON parsing
+                        error_data = error_data.replace("'", '"')
+                        parsed_data = json.loads(error_data)
+                        if isinstance(parsed_data, dict) and parsed_data.get('success') is True:
+                            logger.info("Successfully executed SQL (handled API error from string)", log_context)
+                            return parsed_data
+                    except Exception:
+                        pass
+                
+                # Try to extract the actual response data
+                try:
+                    import json
+                    import re
+                    
+                    # Try to find a JSON-like structure in the error message
+                    if isinstance(error_data, str):
+                        match = re.search(r'\{.*\}', str(error_data))
+                        if match:
+                            json_str = match.group(0).replace("'", '"')
+                            parsed_data = json.loads(json_str)
+                            if isinstance(parsed_data, dict) and parsed_data.get('success') is True:
+                                logger.info("Successfully executed SQL (extracted from error)", log_context)
+                                return parsed_data
+                except Exception:
+                    pass
+                
+                # Special case: If the error message contains "SQL executed successfully"
+                if isinstance(error_data, str) and "SQL executed successfully" in error_data:
+                    success_response = {
+                        "success": True,
+                        "message": "SQL executed successfully",
+                        "sql": sql
+                    }
+                    logger.info("Successfully executed SQL (detected from error message)", log_context)
+                    return success_response
+                
+                # Log the error
+                logger.warning("Failed to execute SQL: " + str(e), log_context)
+                return {"success": False, "message": str(e)}
+            else:
+                # This is a real error without structured data
+                logger.error("Error executing SQL", log_context)
+                return {"success": False, "message": str(e)}
+    except Exception as e:
+        logger.error("Error executing SQL", log_context, exc_info=e)
+        return {"success": False, "message": str(e)}
 
 if __name__ == '__main__':
     logger.info("Starting Supabase MCP server")

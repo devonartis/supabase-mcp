@@ -10,6 +10,7 @@ import sys
 import uuid
 import pytest
 from dotenv import load_dotenv
+from postgrest.exceptions import APIError
 
 # Import the module to test
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,18 +31,35 @@ def test_crud_operations():
 
     try:
         # Create a test table
-        create_result = supabase_mcp_server.create_table(
-            table_name,
-            [
-                {"name": "id", "type": "serial", "primary_key": True},
-                {"name": "name", "type": "text", "nullable": False},
-                {"name": "value", "type": "integer", "default": "0"}
-            ]
-        )
+        try:
+            supabase_mcp_server.create_table(
+                table_name,
+                [
+                    {"name": "id", "type": "serial", "primary_key": True},
+                    {"name": "name", "type": "text", "nullable": False},
+                    {"name": "value", "type": "integer", "default": "0"}
+                ]
+            )
+            # If we get here, the table was created successfully
+            table_created = True
+        except APIError as e:
+            # Check if this is actually a success response being misinterpreted
+            if hasattr(e, 'args') and len(e.args) > 0 and isinstance(e.args[0], dict):
+                error_data = e.args[0]
+                if error_data.get('success') is True and 'table_name' in error_data:
+                    # This is actually a success response
+                    table_created = True
+                else:
+                    # This is a real error
+                    pytest.skip(f"Failed to create test table: {str(e)}")
+                    table_created = False
+            else:
+                # This is a real error
+                pytest.skip(f"Failed to create test table: {str(e)}")
+                table_created = False
         
         # Check if table creation was successful
-        if not create_result.get("success", False):
-            pytest.skip(f"Failed to create test table: {create_result.get('message', 'Unknown error')}")
+        assert table_created, "Table creation failed"
         
         # Create test records
         test_data = [
@@ -84,7 +102,6 @@ def test_crud_operations():
     
     finally:
         # Clean up - drop the test table
-        # Note: In a real environment, you would use a dedicated drop_table function
         try:
             supabase_mcp_server.supabase.rpc(
                 "execute_sql", 

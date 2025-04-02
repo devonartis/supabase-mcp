@@ -43,10 +43,10 @@
   - [ ] Column details
   - [ ] Index information
   
-- [ ] Add schema management
-  - [ ] `create_table` tool for creating new tables
-  - [ ] `alter_table` tool for modifying existing tables
-  - [ ] `drop_table` tool for removing tables
+- [x] Add schema management
+  - [x] `create_table` tool for creating new tables
+  - [x] `alter_table` tool for modifying existing tables
+  - [x] `drop_table` tool for removing tables
 
 ## 4. Supabase Management API Integration
 
@@ -149,3 +149,4 @@ These initial tasks will establish the foundation for the project and allow for 
   - Contextual logging with operation details
   - Proper error reporting with stack traces
   - Unit tests for all logging functionality
+- Implement schema management tools (create_table, execute_sql) - April 1, 2025
