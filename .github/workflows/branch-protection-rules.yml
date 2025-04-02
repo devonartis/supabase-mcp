@@ -1,0 +1,38 @@
+name: Branch Protection Rules
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run once a day at midnight
+    - cron: '0 0 * * *'
+
+jobs:
+  set-branch-protection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up branch protection for main and develop
+        uses: github/branch-protection-rules@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch-name: 'main'
+          required-approving-review-count: 1
+          dismiss-stale-reviews: true
+          require-code-owner-reviews: false
+          enforce-admins: true
+          allow-force-pushes: false
+          allow-deletions: false
+          
+      - name: Set up branch protection for develop
+        uses: github/branch-protection-rules@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch-name: 'develop'
+          required-approving-review-count: 1
+          dismiss-stale-reviews: true
+          require-code-owner-reviews: false
+          enforce-admins: true
+          allow-force-pushes: false
+          allow-deletions: false
