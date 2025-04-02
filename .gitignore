@@ -19,3 +19,9 @@ wheels/
 .idea/
 *.sublime-*
 .DS_Store
+
+# Personal notes
+obsidian_notes/
+
+# Test files
+test_mcp.py

@@ -23,6 +23,10 @@ LOG_LEVELS = {
     "CRITICAL": logging.CRITICAL,
 }
 
+# Configure log output destination
+LOG_TO_FILE = os.getenv("LOG_TO_FILE", "false").lower() == "true"
+LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", "supabase_mcp.log")
+
 
 class StructuredLogFormatter(logging.Formatter):
     """
@@ -89,10 +93,21 @@ def get_logger(name: str, level: Optional[str] = None) -> logging.Logger:
     
     # Only add handlers if they don't exist yet
     if not logger.handlers:
-        # Create console handler
-        console_handler = logging.StreamHandler(sys.stdout)
+        # Create console handler that writes to stderr instead of stdout
+        # This prevents interference with JSON-RPC communication
+        console_handler = logging.StreamHandler(sys.stderr)
         console_handler.setFormatter(StructuredLogFormatter())
         logger.addHandler(console_handler)
+        
+        # Add file handler if configured
+        if LOG_TO_FILE:
+            try:
+                file_handler = logging.FileHandler(LOG_FILE_PATH)
+                file_handler.setFormatter(StructuredLogFormatter())
+                logger.addHandler(file_handler)
+            except Exception as e:
+                # Don't use logger here to avoid recursion
+                print(f"Error setting up log file: {str(e)}", file=sys.stderr)
     
     return logger
 

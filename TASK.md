@@ -115,6 +115,10 @@
   - [ ] Upload to PyPI
   - [ ] Verify installation works
 
+## Discovered During Work
+
+- [x] Fix JSON-RPC validation errors caused by logger writing to stdout - April 1, 2025
+
 ## First Sprint Focus
 
 For the first sprint, focus on completing the following tasks:
