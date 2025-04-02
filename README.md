@@ -1,6 +1,6 @@
 # Supabase MCP Server
 
-A Model Context Protocol (MCP) server for interacting with Supabase databases. This server provides tools for performing CRUD operations on Supabase tables through a standardized interface that can be used by LLMs and other MCP clients.
+A Model Context Protocol (MCP) server for interacting with Supabase databases. This server provides tools for performing CRUD operations and schema management on Supabase tables through a standardized interface that can be used by LLMs and other MCP clients.
 
 ## Features
 
