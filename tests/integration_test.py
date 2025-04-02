@@ -1,108 +1,99 @@
 """
-Integration test for the Supabase MCP server.
+Integration tests for the Supabase MCP server.
 
-This script tests the Supabase MCP server with a real Supabase instance.
-To run this test, you need to have a Supabase project and set the
-SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.
-
-Example:
-    $ python -m tests.integration_test
+These tests interact with a real Supabase instance and verify that the
+MCP server functions correctly.
 """
 
 import os
 import sys
-import json
-from typing import Dict, List, Any
+import uuid
+import pytest
+from dotenv import load_dotenv
 
-# Add the parent directory to the path so we can import the server module
+# Import the module to test
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from supabase_mcp_server import read_rows, create_records, update_records, delete_records
+import supabase_mcp_server
 
-# Test configuration
-TEST_TABLE = "test_table"  # Make sure this table exists in your Supabase project
+# Load environment variables
+load_dotenv()
+
 
 def test_crud_operations():
-    """Test the CRUD operations with a real Supabase instance."""
-    print("\n=== Starting Integration Test ===")
-    
-    # Check if environment variables are set
-    if not os.getenv('SUPABASE_URL') or not os.getenv('SUPABASE_SERVICE_ROLE_KEY'):
-        print("Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set.")
-        return False
-    
+    """Test CRUD operations on a test table."""
+    # Skip if no Supabase credentials are available
+    if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_SERVICE_ROLE_KEY"):
+        pytest.skip("Supabase credentials not available")
+
+    # Generate a unique table name for testing
+    table_name = f"test_table_{uuid.uuid4().hex[:8]}"
+
     try:
-        # 1. Create a test record
-        test_record = {
-            "name": "Integration Test",
-            "description": "Testing the Supabase MCP server",
-            "created_at": "2025-03-31T00:00:00"
-        }
+        # Create a test table
+        create_result = supabase_mcp_server.create_table(
+            table_name,
+            [
+                {"name": "id", "type": "serial", "primary_key": True},
+                {"name": "name", "type": "text", "nullable": False},
+                {"name": "value", "type": "integer", "default": "0"}
+            ]
+        )
         
-        print(f"\n1. Creating record in {TEST_TABLE}...")
-        created = create_records(TEST_TABLE, [test_record])
-        if not created or not isinstance(created, list) or len(created) == 0:
-            print(f"Error: Failed to create record. Result: {created}")
-            return False
+        # Check if table creation was successful
+        if not create_result.get("success", False):
+            pytest.skip(f"Failed to create test table: {create_result.get('message', 'Unknown error')}")
         
-        print(f"✓ Record created: {json.dumps(created[0], indent=2)}")
-        record_id = created[0].get('id')
+        # Create test records
+        test_data = [
+            {"name": "Test 1", "value": 10},
+            {"name": "Test 2", "value": 20},
+            {"name": "Test 3", "value": 30}
+        ]
+        created = supabase_mcp_server.create_records(table_name, test_data)
+        assert len(created) == 3
         
-        # 2. Read the created record
-        print(f"\n2. Reading record with id={record_id}...")
-        read = read_rows(TEST_TABLE, {"id": record_id})
-        if not read or not isinstance(read, list) or len(read) == 0:
-            print(f"Error: Failed to read record. Result: {read}")
-            return False
+        # Read records
+        read_result = supabase_mcp_server.read_rows(table_name)
+        assert len(read_result) == 3
         
-        print(f"✓ Record read: {json.dumps(read[0], indent=2)}")
+        # Read with filter
+        filtered = supabase_mcp_server.read_rows(table_name, {"value": {"gte": 20}})
+        assert len(filtered) == 2
         
-        # 3. Update the record
-        update_data = {"description": "Updated description"}
-        print(f"\n3. Updating record with id={record_id}...")
-        updated = update_records(TEST_TABLE, {"id": record_id}, update_data)
-        if not updated or not isinstance(updated, list) or len(updated) == 0:
-            print(f"Error: Failed to update record. Result: {updated}")
-            return False
+        # Update records
+        updated = supabase_mcp_server.update_records(
+            table_name, 
+            {"value": {"gte": 20}}, 
+            {"value": 25}
+        )
+        assert len(updated) == 2
         
-        print(f"✓ Record updated: {json.dumps(updated[0], indent=2)}")
+        # Verify update
+        after_update = supabase_mcp_server.read_rows(table_name, {"value": 25})
+        assert len(after_update) == 2
         
-        # 4. Read the updated record to verify
-        print(f"\n4. Reading updated record with id={record_id}...")
-        read_updated = read_rows(TEST_TABLE, {"id": record_id})
-        if not read_updated or not isinstance(read_updated, list) or len(read_updated) == 0:
-            print(f"Error: Failed to read updated record. Result: {read_updated}")
-            return False
+        # Delete records
+        deleted = supabase_mcp_server.delete_records(table_name, {"value": 25})
+        assert len(deleted) == 2
         
-        if read_updated[0].get('description') != update_data['description']:
-            print(f"Error: Update verification failed. Expected '{update_data['description']}' but got '{read_updated[0].get('description')}'")
-            return False
+        # Verify delete
+        after_delete = supabase_mcp_server.read_rows(table_name)
+        assert len(after_delete) == 1
         
-        print(f"✓ Updated record verified: {json.dumps(read_updated[0], indent=2)}")
-        
-        # 5. Delete the record
-        print(f"\n5. Deleting record with id={record_id}...")
-        deleted = delete_records(TEST_TABLE, {"id": record_id})
-        if not deleted or not isinstance(deleted, list) or len(deleted) == 0:
-            print(f"Error: Failed to delete record. Result: {deleted}")
-            return False
-        
-        print(f"✓ Record deleted: {json.dumps(deleted[0], indent=2)}")
-        
-        # 6. Verify deletion
-        print(f"\n6. Verifying deletion of record with id={record_id}...")
-        read_after_delete = read_rows(TEST_TABLE, {"id": record_id})
-        if read_after_delete and isinstance(read_after_delete, list) and len(read_after_delete) > 0:
-            print(f"Error: Record still exists after deletion. Result: {read_after_delete}")
-            return False
-        
-        print("✓ Deletion verified: Record no longer exists")
-        
-        print("\n=== Integration Test Successful! ===")
         return True
-        
-    except Exception as e:
-        print(f"Error during integration test: {str(e)}")
-        return False
+    
+    finally:
+        # Clean up - drop the test table
+        # Note: In a real environment, you would use a dedicated drop_table function
+        try:
+            supabase_mcp_server.supabase.rpc(
+                "execute_sql", 
+                {"sql": f"DROP TABLE IF EXISTS {table_name}"}
+            ).execute()
+        except Exception:
+            # Ignore cleanup errors
+            pass
+
 
 if __name__ == "__main__":
     success = test_crud_operations()

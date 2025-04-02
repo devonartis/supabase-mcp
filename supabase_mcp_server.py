@@ -256,6 +256,86 @@ def delete_records(table_name: str, query: Dict[str, Any]) -> List[Dict[str, Any
         logger.error(f"Error deleting records from table '{table_name}'", log_context, exc_info=e)
         raise
 
+@mcp.tool()
+def create_table(
+    table_name: str, 
+    columns: List[Dict[str, Any]], 
+    schema_name: str = "public"
+) -> Dict[str, Any]:
+    """
+    Create a new table in the Supabase database.
+    
+    This tool creates a new table with the specified columns and constraints.
+    It requires service_role privileges and should be used with caution.
+    
+    Args:
+        table_name (str): Name of the table to create. Must follow PostgreSQL naming conventions.
+        columns (List[Dict[str, Any]]): List of column definitions, each with the following keys:
+            - name (str): Column name
+            - type (str): PostgreSQL data type (e.g., 'text', 'integer', 'serial', 'timestamp')
+            - nullable (bool, optional): Whether the column can contain NULL values (default: True)
+            - default (str, optional): Default value expression (e.g., 'now()', '0', "'default text'")
+            - primary_key (bool, optional): Whether this column is part of the primary key (default: False)
+        schema_name (str, optional): Name of the schema to create the table in (default: "public")
+    
+    Returns:
+        Dict[str, Any]: A dictionary containing the result of the operation, including:
+            - success (bool): Whether the operation was successful
+            - message (str): A message describing the result
+            - table_name (str): The fully qualified table name (if successful)
+            - sql (str): The SQL statement that was executed
+    
+    Examples:
+        >>> create_table(
+        ...     "users",
+        ...     [
+        ...         {"name": "id", "type": "serial", "primary_key": True},
+        ...         {"name": "username", "type": "text", "nullable": False},
+        ...         {"name": "email", "type": "text", "nullable": False},
+        ...         {"name": "created_at", "type": "timestamp", "default": "now()"}
+        ...     ]
+        ... )
+        {
+            "success": true,
+            "message": "Table created successfully",
+            "table_name": "public.users",
+            "sql": "CREATE TABLE public.users (id serial NOT NULL, username text NOT NULL, email text NOT NULL, created_at timestamp DEFAULT now(), PRIMARY KEY (id))"
+        }
+    """
+    log_context = {
+        "table_name": table_name,
+        "schema_name": schema_name,
+        "column_count": len(columns)
+    }
+    
+    logger.info(f"Creating table '{schema_name}.{table_name}' with {len(columns)} columns", log_context)
+    
+    try:
+        # Call the create_table_dynamic function via RPC
+        params = {
+            "p_table_name": table_name,
+            "p_columns": columns
+        }
+        
+        # Add schema name if it's not the default
+        if schema_name != "public":
+            params["p_schema_name"] = schema_name
+        
+        # Execute the RPC call
+        result = supabase.rpc("create_table_dynamic", params).execute().data
+        
+        # Log the result
+        if result and result[0].get("success"):
+            logger.info(f"Successfully created table '{schema_name}.{table_name}'", log_context)
+        else:
+            error_msg = result[0].get("message") if result else "Unknown error"
+            logger.warning(f"Failed to create table '{schema_name}.{table_name}': {error_msg}", log_context)
+        
+        return result[0] if result else {"success": False, "message": "No result returned from RPC call"}
+    except Exception as e:
+        logger.error(f"Error creating table '{schema_name}.{table_name}'", log_context, exc_info=e)
+        raise
+
 if __name__ == '__main__':
     logger.info("Starting Supabase MCP server")
     try:

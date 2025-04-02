@@ -42,6 +42,11 @@
   - [ ] Table listing
   - [ ] Column details
   - [ ] Index information
+  
+- [ ] Add schema management
+  - [ ] `create_table` tool for creating new tables
+  - [ ] `alter_table` tool for modifying existing tables
+  - [ ] `drop_table` tool for removing tables
 
 ## 4. Supabase Management API Integration
 
