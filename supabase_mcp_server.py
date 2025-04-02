@@ -3,16 +3,31 @@ from supabase import create_client, Client
 import os
 from typing import List, Dict, Optional, Any, Literal
 from dotenv import load_dotenv
+import logger
 
+# Load environment variables
 load_dotenv()
+logger.info("Environment variables loaded from .env file")
 
 # Initialize Supabase client
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    logger.critical("Missing required environment variables: SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY")
+    raise ValueError("Missing required environment variables: SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY")
+
+try:
+    logger.info(f"Connecting to Supabase at {SUPABASE_URL}")
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    logger.info("Successfully connected to Supabase")
+except Exception as e:
+    logger.error("Failed to connect to Supabase", exc_info=e)
+    raise
 
 
 # Create MCP server
+logger.info("Initializing MCP server with stdio transport")
 mcp = FastMCP(transport='stdio')
 
 
@@ -65,26 +80,49 @@ def read_rows(
         # Paginate through users, 20 at a time, starting at the 41st user
         read_rows("users", limit=20, offset=40)
     """
-    query_builder = supabase.table(table_name).select(select)
+    log_context = {
+        "table": table_name,
+        "query": query,
+        "select": select,
+        "order_by": order_by,
+        "limit": limit,
+        "offset": offset
+    }
     
-    # Apply filters if provided
-    if query:
-        query_builder = query_builder.match(query)
+    logger.info(f"Reading rows from table '{table_name}'", log_context)
     
-    # Apply ordering if provided
-    if order_by:
-        for column, direction in order_by.items():
-            query_builder = query_builder.order(column, ascending=(direction.lower() == "asc"))
-    
-    # Apply pagination if provided
-    if limit is not None:
-        query_builder = query_builder.limit(limit)
-    
-    if offset is not None:
-        query_builder = query_builder.offset(offset)
-    
-    # Execute the query and return the results
-    return query_builder.execute().data
+    try:
+        query_builder = supabase.table(table_name).select(select)
+        
+        # Apply filters if provided
+        if query:
+            logger.debug(f"Applying filter conditions to table '{table_name}'", {"conditions": query})
+            query_builder = query_builder.match(query)
+        
+        # Apply ordering if provided
+        if order_by:
+            for column, direction in order_by.items():
+                ascending = direction.lower() == "asc"
+                logger.debug(f"Ordering by column '{column}' ({'ascending' if ascending else 'descending'})")
+                query_builder = query_builder.order(column, ascending=ascending)
+        
+        # Apply pagination if provided
+        if limit is not None:
+            logger.debug(f"Limiting results to {limit} rows")
+            query_builder = query_builder.limit(limit)
+        
+        if offset is not None:
+            logger.debug(f"Skipping first {offset} rows")
+            query_builder = query_builder.offset(offset)
+        
+        # Execute the query and return the results
+        result = query_builder.execute().data
+        logger.info(f"Successfully read {len(result)} rows from table '{table_name}'")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error reading from table '{table_name}'", log_context, exc_info=e)
+        raise
 
 @mcp.tool()
 def create_records(table_name: str, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -115,7 +153,20 @@ def create_records(table_name: str, records: List[Dict[str, Any]]) -> List[Dict[
             {"name": "Product 2", "price": 49.99, "category": "home"}
         ])
     """
-    return supabase.table(table_name).insert(records).execute().data
+    log_context = {
+        "table": table_name,
+        "record_count": len(records)
+    }
+    
+    logger.info(f"Creating {len(records)} records in table '{table_name}'", log_context)
+    
+    try:
+        result = supabase.table(table_name).insert(records).execute().data
+        logger.info(f"Successfully created {len(result)} records in table '{table_name}'")
+        return result
+    except Exception as e:
+        logger.error(f"Error creating records in table '{table_name}'", log_context, exc_info=e)
+        raise
 
 @mcp.tool()
 def update_records(table_name: str, query: Dict[str, Any], updates: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -146,7 +197,21 @@ def update_records(table_name: str, query: Dict[str, Any], updates: Dict[str, An
         # Update all products in a category
         update_records("products", {"category": "electronics"}, {"discount": 0.1, "on_sale": True})
     """
-    return supabase.table(table_name).update(updates).match(query).execute().data
+    log_context = {
+        "table": table_name,
+        "query": query,
+        "updates": updates
+    }
+    
+    logger.info(f"Updating records in table '{table_name}'", log_context)
+    
+    try:
+        result = supabase.table(table_name).update(updates).match(query).execute().data
+        logger.info(f"Successfully updated {len(result)} records in table '{table_name}'")
+        return result
+    except Exception as e:
+        logger.error(f"Error updating records in table '{table_name}'", log_context, exc_info=e)
+        raise
 
 @mcp.tool()
 def delete_records(table_name: str, query: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -176,7 +241,27 @@ def delete_records(table_name: str, query: Dict[str, Any]) -> List[Dict[str, Any
         # Delete all cancelled orders older than a certain date
         delete_records("orders", {"status": "cancelled", "created_at": {"lt": "2025-01-01"}})
     """
-    return supabase.table(table_name).delete().match(query).execute().data
+    log_context = {
+        "table": table_name,
+        "query": query
+    }
+    
+    logger.info(f"Deleting records from table '{table_name}'", log_context)
+    
+    try:
+        result = supabase.table(table_name).delete().match(query).execute().data
+        logger.info(f"Successfully deleted {len(result)} records from table '{table_name}'")
+        return result
+    except Exception as e:
+        logger.error(f"Error deleting records from table '{table_name}'", log_context, exc_info=e)
+        raise
 
 if __name__ == '__main__':
-    mcp.run()
+    logger.info("Starting Supabase MCP server")
+    try:
+        mcp.run()
+    except Exception as e:
+        logger.critical("Unhandled exception in MCP server", exc_info=e)
+        raise
+    finally:
+        logger.info("Supabase MCP server stopped")

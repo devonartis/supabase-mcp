@@ -8,6 +8,7 @@ A Model Context Protocol (MCP) server for interacting with Supabase databases. T
 - **Create Operations**: Insert new records into tables
 - **Update Operations**: Modify existing records with flexible querying
 - **Delete Operations**: Remove records from tables with safety controls
+- **Structured Logging**: Comprehensive logging with JSON formatting and context
 
 ## Installation
 
@@ -34,6 +35,7 @@ A Model Context Protocol (MCP) server for interacting with Supabase databases. T
    ```
    SUPABASE_URL=https://your-project-id.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   LOG_LEVEL=INFO  # Optional: Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
    ```
    
    The server uses python-dotenv to automatically load these environment variables from the .env file.
@@ -139,6 +141,41 @@ delete_records("orders", {"status": "cancelled"})
 
 ## Development
 
+### Logging
+
+The server includes a comprehensive logging framework that provides structured logging with JSON output. Logs include timestamps, log levels, and contextual information about operations.
+
+#### Log Levels
+
+You can configure the log level by setting the `LOG_LEVEL` environment variable:
+
+```
+LOG_LEVEL=DEBUG  # For detailed debugging information
+LOG_LEVEL=INFO   # For general operational information (default)
+LOG_LEVEL=WARNING  # For warning conditions
+LOG_LEVEL=ERROR  # For error conditions
+LOG_LEVEL=CRITICAL  # For critical errors
+```
+
+#### Log Format
+
+Logs are output in JSON format with the following structure:
+
+```json
+{
+  "timestamp": "2025-04-01T21:00:00.000000",
+  "level": "INFO",
+  "name": "supabase_mcp",
+  "message": "Reading rows from table 'users'",
+  "extra": {
+    "table": "users",
+    "query": {"is_active": true}
+  }
+}
+```
+
+This structured format makes it easy to parse and analyze logs in production environments.
+
 ### Running Tests
 
 ```bash
@@ -148,8 +185,10 @@ uv run pytest tests/
 ### Project Structure
 
 - `supabase_mcp_server.py`: Main server implementation
+- `logger.py`: Logging framework
 - `tests/`: Test suite for the server
-  - `test_supabase_mcp_server.py`: Unit tests
+  - `test_supabase_mcp_server.py`: Unit tests for the MCP server
+  - `test_logger.py`: Unit tests for the logging framework
   - `integration_test.py`: Integration tests
 
 ## License
